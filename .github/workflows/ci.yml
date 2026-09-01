@@ -161,6 +161,38 @@ jobs:
             test-results/
           retention-days: 14
 
+  # The container is for humans rather than for CI, which is exactly why it needs
+  # a job: nothing else here would notice if it stopped building. The specific
+  # rot to catch is the Dockerfile's pinned tag drifting from the Playwright
+  # version in package.json, and a mismatch fails the moment a test runs.
+  #
+  # Off the pull request path with the rest of the expensive work - a broken
+  # image is worth knowing about by the next morning, not within the minute.
+  docker:
+    name: Container image
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the image
+        run: docker compose build e2e
+
+      # Smoke only. The full suite already ran natively in the job above; what is
+      # being proven here is that the image works at all.
+      - name: Run the smoke suite inside it
+        run: docker compose run --rm e2e npm run test:e2e:smoke
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report-docker
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
+
   # Runs the whole suite three times against unchanged code. Anything that comes
   # back with a different result is flaky by definition, and this is the only way
   # to find that out before it starts eroding trust in a red build.

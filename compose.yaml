@@ -1,0 +1,52 @@
+# Run the suite without installing Node, Playwright or any browsers.
+#
+#   docker compose run --rm e2e
+#   docker compose run --rm a11y
+#   docker compose run --rm unit
+#   docker compose run --rm all-browsers
+#
+# The HTML report lands in ./playwright-report on the host either way, so you
+# read it with `npm run test:report` or by opening the file directly.
+
+x-suite: &suite
+  build: .
+
+  # Chromium shares memory through /dev/shm, and Docker's default 64MB is not
+  # enough - it crashes on larger pages, intermittently, which is the worst way
+  # for it to fail. Handing it the host's IPC namespace is what Playwright
+  # recommends and it costs nothing.
+  ipc: host
+
+  # A browser that dies mid-test leaves children behind. Without an init process
+  # as PID 1 nothing reaps them and they accumulate over a run.
+  init: true
+
+  # Only the output comes back out. The source is copied in at build time rather
+  # than mounted, so the container can never pick up host node_modules built for
+  # a different platform.
+  volumes:
+    - ./playwright-report:/app/playwright-report
+    - ./test-results:/app/test-results
+
+services:
+  # The login suite on Chromium. This is the one that matters.
+  e2e:
+    <<: *suite
+    command: npm run test:e2e
+
+  # Accessibility scan. Three of its six tests are expected failures that report
+  # as passing - see docs/FINDINGS.md.
+  a11y:
+    <<: *suite
+    command: npm run test:a11y
+
+  # Component tests. No browser involved, so this is the quick one.
+  unit:
+    <<: *suite
+    command: npm run test:unit
+
+  # Chromium, Firefox and WebKit. Slower, and the reason the image carries all
+  # three browsers rather than just one.
+  all-browsers:
+    <<: *suite
+    command: npm run test:e2e:all-browsers
