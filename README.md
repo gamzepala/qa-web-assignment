@@ -1,38 +1,124 @@
-# Test assignment
-We are looking for Automation Engineers that have the mindset "only the sky is the limit"
-and "automation doesn't stop at testing, it's just a beginning!" ;)
+# Login test automation
 
-## Purpose
-The purpose of this test assignment is to assess the applicant's automation skills, allowing him/her to show the best they can do and how fast they can learn.
+Automated tests for the login functionality of this Vue 3 single-page app, built
+with Playwright and TypeScript. The original brief is preserved in
+[docs/ASSIGNMENT.md](docs/ASSIGNMENT.md).
 
-## What's Expected
+**57 tests across three layers**, plus a GitHub Actions pipeline. Along the way the
+suite found six real defects in the application, which are written up in
+[docs/FINDINGS.md](docs/FINDINGS.md).
 
-- **Automated tests for the login functionality** - Test all aspects of the login feature
-- **Good test coverage** - Comprehensive test scenarios for login functionality
-- **Edge cases** - Include tests for boundary conditions and unusual inputs
-- **Detailed comments and descriptions** - Make sure each test has clear documentation explaining what it tests and why
-- **Clean and maintainable test code** - Write code that is easy to understand and maintain
+## Running it
 
-### Add-ons (Optional)
-- **Pipeline Integration** - Set up CI/CD pipeline (GitHub Actions, GitLab CI, etc.) to run tests automatically
-- **Accessibility (a11y)** - Include tests for accessibility compliance and user experience for all users
+From a clean clone, with Node 20 or newer:
 
-## Focus
-- **Tests are runnable** - All tests should execute without errors and provide clear results
-- **Project contains only necessary sources** - Keep the codebase clean with only essential files
+```bash
+npm ci
+npx playwright install --with-deps chromium
+```
 
-## When the Assignment is Complete
-1. Push your solution to GitHub (or GitLab)
-2. Set the repository visibility to **public**
-3. Send us the link to your repository
+Then pick a suite. Playwright builds the app and starts its own server, so there
+is nothing to run in another terminal.
 
-## Important Notes
-- We don't expect you to spend weeks (and sleepless nights) on doing it. Lets see how far you can get in 6-10 hours. We want to see how you approach and solve problems.
-- You will find the users to login in users.js.
-- If you have any questions, please contact us.
+```bash
+npm test              # component tests, ~4s
+npm run test:e2e      # the login suite on Chromium, ~1min
+npm run test:a11y     # accessibility scan, ~30s
+npm run test:report   # open the HTML report from the last run
+```
 
-PS.
-- It is an open assignment. There is no right/wrong answer and there is no end goal other than proving your skills towards automation, pipeline, coverage, etc. 
+If you would rather explore than watch a log scroll past, this is the one to use:
 
-**Good Luck!**
+```bash
+npx playwright test --ui
+```
 
+It gives you the test tree, a scrubbable timeline, and a DOM snapshot of the page
+at every step, with the network and console alongside.
+
+A few more, for completeness:
+
+```bash
+npm run test:e2e:smoke          # critical path only, desktop + mobile viewport
+npm run test:e2e:all-browsers   # Chromium, Firefox and WebKit
+npm run typecheck
+```
+
+### Two things that look wrong and are not
+
+**Five tests report as `✘` while the run still passes.** They are marked
+`test.fail()` — Playwright runs them, expects them to fail, and the summary still
+says everything passed. They are the real defects listed in
+[FINDINGS.md](docs/FINDINGS.md), asserting the behaviour the app *should* have. If
+someone fixes one, it flips to an unexpected pass and the build goes red, which is
+how you find out the bug is gone. A skipped test would just rot quietly.
+
+**`npm run test:a11y` needs Chromium installed**, which the setup above covers.
+
+## What is covered
+
+| Layer | Tests | What it proves |
+|---|---|---|
+| Component ([`src/App.spec.js`](src/App.spec.js)) | 11 | The branches inside `logIn`, `logOut` and `clearError`, in milliseconds, with no browser |
+| End-to-end ([`e2e/tests/`](e2e/tests)) | 40 | A real person signing in, being turned away, and signing out, in a real browser |
+| Accessibility ([`e2e/tests/a11y/`](e2e/tests/a11y)) | 6 | WCAG 2.0 and 2.1 A/AA, plus the keyboard and screen-reader checks a scanner cannot make |
+
+That is 57 written for this assignment. `npm test` reports 12 rather than 11,
+because it also runs the single pre-existing test in `js/users.test.js`.
+
+The end-to-end tests break down as sign-in (7), rejected credentials (11), edge
+cases and hostile input (10), error message behaviour (5), and session lifetime (7).
+
+Why the coverage is shaped this way, what was left out and why, and the risk
+ranking behind it are all in [docs/TEST-STRATEGY.md](docs/TEST-STRATEGY.md).
+
+## How it is put together
+
+```
+playwright.config.ts       timeouts, projects, reporters, the app server
+e2e/
+  src/config/             the base URL and the timeout budget, in one place
+  src/pages/              page objects - locators and actions
+  src/fixtures/           console capture, network stubbing, session seeding
+  src/testdata/           credentials and the invalid-input catalogue
+  src/utils/              session reads, axe helpers
+  tests/                  the specs
+src/App.spec.js           component tests
+docs/                     strategy, findings, decision records
+```
+
+To add a test, put it in `e2e/tests/`, import `test` and `expect` from
+`e2e/src/fixtures/fixtures`, and reach for a page object rather than a raw
+selector. The fixtures give you console capture and a hermetic network for free.
+
+The decisions that shaped this — why Playwright and not BDD, why the tests run
+against the production build, why sessions are seeded rather than clicked through
+— are recorded in [docs/adr/](docs/adr).
+
+## Continuous integration
+
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs five jobs. Typecheck
+and component tests come back in under a minute with no browser installed. The
+Chromium suite is the gate. The accessibility scan runs separately and is
+deliberately not required, because an accessibility rule should never be the
+reason a bug fix cannot ship. Firefox and WebKit run on master, nightly and on
+demand rather than on every pull request. A nightly flake check runs the suite
+three times over with retries disabled, so a flaky test surfaces before it starts
+eroding anyone's trust in a red build.
+
+Traces, screenshots and video are kept for any failure and uploaded as artifacts,
+so a CI failure can be diagnosed without reproducing it locally.
+
+## What it found
+
+Six defects, in short:
+
+- After signing in, the entire content area is invisible.
+- The Sign Out item in the user menu can never be clicked.
+- Any value in `localStorage` is accepted as a valid session.
+- The Logout button fails the AA contrast minimum.
+- The failure message is never announced to a screen reader.
+- The signed-in page is a keyboard dead end — one reachable control.
+
+Each one, with evidence and a suggested fix, is in
+[docs/FINDINGS.md](docs/FINDINGS.md).
