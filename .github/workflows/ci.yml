@@ -1,0 +1,202 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+  schedule:
+    # 03:00 UTC nightly. Picks up anything that rots without a code change:
+    # a browser update, a flaky test, a dependency that shifted underneath us.
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+# A new push to the same branch makes the previous run pointless. Cancelling it
+# frees the runner instead of queueing behind work nobody is waiting for.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # Fastest possible signal. No browsers installed here on purpose - a type
+  # error or a broken component test should come back in under a minute rather
+  # than after a browser download.
+  checks:
+    name: Typecheck and component tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run typecheck
+
+      - run: npm run test:unit
+
+  # The gate. Everything the login suite covers, on the browser most people use.
+  # This is the one to make a required status check.
+  e2e:
+    name: End-to-end (chromium)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Browser binaries are large and change only when @playwright/test does.
+      # The lockfile hash is the honest key: it changes exactly when the pinned
+      # Playwright version changes, so a stale browser can never be restored.
+      - name: Cache browser binaries
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install chromium
+        run: npx playwright install --with-deps chromium
+
+      - run: npm run test:e2e
+
+      # always() rather than failure(): a run that passed on a retry still has a
+      # trace worth looking at, and that is exactly the case you lose otherwise.
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report-e2e
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
+
+  # Separate job, and deliberately not a required check. Accessibility findings
+  # should be visible and should never be the reason a bug fix cannot ship.
+  a11y:
+    name: Accessibility scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Cache browser binaries
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install chromium
+        run: npx playwright install --with-deps chromium
+
+      - run: npm run test:a11y
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report-a11y
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
+
+  # Firefox and WebKit cost roughly as much again as the chromium run and catch
+  # far less, so they stay off the pull request path. On master, nightly and on
+  # demand is the right frequency for engine-specific bugs.
+  cross-browser:
+    name: End-to-end (${{ matrix.browser }})
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      # One engine failing should not hide the other engine's result.
+      fail-fast: false
+      matrix:
+        browser: [firefox, webkit]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Cache browser binaries
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install ${{ matrix.browser }}
+        run: npx playwright install --with-deps ${{ matrix.browser }}
+
+      - run: npx playwright test --project=${{ matrix.browser }}
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report-${{ matrix.browser }}
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
+
+  # Runs the whole suite three times against unchanged code. Anything that comes
+  # back with a different result is flaky by definition, and this is the only way
+  # to find that out before it starts eroding trust in a red build.
+  flake-check:
+    name: Flake check
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Cache browser binaries
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install chromium
+        run: npx playwright install --with-deps chromium
+
+      # No retries here. A retry is what hides a flake; the whole point of this
+      # job is to let one surface.
+      - run: npx playwright test --project=chromium --repeat-each=3 --retries=0
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report-flake-check
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
