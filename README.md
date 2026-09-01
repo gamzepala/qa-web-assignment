@@ -124,12 +124,16 @@ against the production build, why sessions are seeded rather than clicked throug
 
 ## Continuous integration
 
-[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs five jobs. Typecheck
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs six jobs. Typecheck
 and component tests come back in under a minute with no browser installed. The
 Chromium suite is the gate. The accessibility scan runs separately and is
 deliberately not required, because an accessibility rule should never be the
-reason a bug fix cannot ship. Firefox and WebKit run on master, nightly and on
-demand rather than on every pull request. A nightly flake check runs the suite
+reason a bug fix cannot ship.
+
+Three more stay off the pull-request path, where they would cost more than they
+return. Firefox and WebKit run on master, nightly and on demand. A job builds the
+container image and runs the smoke suite inside it, because nothing else would
+notice if that image stopped building. And a nightly flake check runs the suite
 three times over with retries disabled, so a flaky test surfaces before it starts
 eroding anyone's trust in a red build.
 
