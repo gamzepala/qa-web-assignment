@@ -1,0 +1,17 @@
+# node_modules must never be copied in. The host's copy is built for the host's
+# OS and architecture - a macOS arm64 esbuild binary inside a Linux container
+# fails in a way that takes a while to understand. npm ci in the image builds
+# the right ones.
+node_modules
+
+# Build and test output, regenerated inside the container anyway.
+dist
+playwright-report
+test-results
+blob-report
+coverage
+
+.git
+.github
+.env
+*.log

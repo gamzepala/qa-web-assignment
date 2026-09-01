@@ -44,6 +44,32 @@ npm run test:e2e:all-browsers   # Chromium, Firefox and WebKit
 npm run typecheck
 ```
 
+### Or run it in Docker, with nothing installed
+
+If you would rather not put Node and three browsers on your machine to look at
+someone's assignment, everything runs in a container instead:
+
+```bash
+docker compose run --rm e2e            # the login suite
+docker compose run --rm unit           # component tests
+docker compose run --rm a11y           # accessibility scan
+docker compose run --rm all-browsers   # Chromium, Firefox and WebKit
+```
+
+The first build pulls about 2GB and takes a few minutes; after that a run starts
+in seconds. The HTML report is written to `./playwright-report` on your machine
+either way, so you can open it normally once the container exits.
+
+The image is `mcr.microsoft.com/playwright:v1.62.1-noble`, pinned to exactly the
+Playwright version in `package.json` and carrying browsers built by the same
+release — so the browser versions are identical to CI's, and identical to
+whatever your colleague gets. It is multi-arch, so an Apple Silicon Mac pulls a
+native arm64 image rather than emulating x86.
+
+For actually debugging a test, use the native path and `npx playwright test --ui`.
+Docker is the right tool for a clean, reproducible run; it is the wrong one for
+poking at a browser interactively.
+
 ### Two things that look wrong and are not
 
 **Five tests report as `✘` while the run still passes.** They are marked
@@ -84,6 +110,7 @@ e2e/
   src/utils/              session reads, axe helpers
   tests/                  the specs
 src/App.spec.js           component tests
+Dockerfile, compose.yaml  the containerised run
 docs/                     strategy, findings, decision records
 ```
 
