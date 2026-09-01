@@ -234,6 +234,19 @@ Every test runs with the browser console captured and off-origin requests stubbe
 On failure the console is attached to the report alongside a trace, a screenshot
 and video, so a CI failure can be diagnosed without reproducing it.
 
+### Where it runs
+
+Three places, and they are meant to agree with each other.
+
+Locally through npm, which is the right way to develop and the only way to use
+Playwright's UI mode for debugging. In CI on Linux. And in a container, pinned to
+the same Playwright release, which is what makes the first two comparable — the
+browser a reviewer runs is the same build CI runs, on whatever machine they have.
+The reasoning is in [ADR-007](adr/ADR-007-containerised-run.md).
+
+The container is not the debugging path and is not meant to be. It is there so
+that "it works on my machine" stops being a thing anyone has to say.
+
 ### Tags
 
 `@smoke` marks the critical path — five tests spanning sign-in, rejection and
