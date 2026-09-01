@@ -10,7 +10,13 @@ import dotenv from 'dotenv';
  */
 dotenv.config({ quiet: true });
 
-const DEFAULT_BASE_URL = 'http://localhost:4173';
+/**
+ * 127.0.0.1 rather than localhost, deliberately. localhost resolves to both the
+ * IPv4 and IPv6 loopback and the browser picks; the preview server binds to one.
+ * Firefox intermittently chose the address nothing was listening on and failed
+ * with a connection refused mid-run. Naming the address removes the guess.
+ */
+const DEFAULT_BASE_URL = 'http://127.0.0.1:4173';
 
 function required(name: string, value: string | undefined, fallback: string): string {
   const resolved = value?.trim() || fallback;
@@ -45,8 +51,13 @@ export const TIMEOUTS = {
   action: 10_000,
   /** One auto-retrying assertion. */
   expect: 5_000,
-  /** A full page load. */
-  navigation: 30_000,
-  /** A whole test. */
-  test: 30_000,
+  /**
+   * A full page load. Generous for a local static bundle, and deliberately so:
+   * a cold Firefox or WebKit start is several times slower than Chromium, and a
+   * test that fails because the budget was tight rather than because the app
+   * broke is the fastest way to teach a team to ignore a red build.
+   */
+  navigation: 45_000,
+  /** A whole test, with room for the slowest legitimate sequence inside one. */
+  test: 60_000,
 } as const;
