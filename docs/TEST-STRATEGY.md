@@ -83,19 +83,36 @@ account genuinely is user zero.
 
 ### Proving the tests can fail
 
-A test that cannot fail is worse than no test, so I broke the app three ways and
-checked what happened.
+A test that cannot fail is worse than no test, so I broke the app four ways and
+checked what happened. Each row is the whole Chromium suite unless stated.
 
 | Mutation | Expected | Actual |
 |---|---|---|
 | Removed the credential check entirely | The rejection suite fails | 19 of 21 failed; the 2 survivors correctly do not assert rejection |
 | Logout hides the view but keeps the session | The logout tests fail | Exactly 2 failed, both logout tests |
 | Sign everyone in as the first user | The identity assertions fail | Exactly 2 failed, the two other accounts |
-| Reworded the error message | The exact-copy test fails | 1 failed; the four behavioural tests correctly still passed |
+| Reworded the error message | Only the test pinning the wording fails | 1 failed |
 
-The last row is the useful one. Only the test that pins the wording broke, and the
-tests about *when* the message appears and clears did not — which is what you want,
-because those are different behaviours and should not be coupled to the copy.
+The last row is the one worth explaining, because the first time I ran it the
+result was misleading and I had written the wrong conclusion from it.
+
+I originally ran that mutation against `error-message.spec.ts` alone, saw one
+failure out of five, and wrote that behavioural tests were properly decoupled from
+the copy. They were not. The exact sentence was asserted with `toHaveText` in three
+files, and because two of those sites sit inside `for` loops it expanded to roughly
+sixteen tests. A one-word copy change would have turned three files red — the
+opposite of what I had claimed, in the section I had just told the reader to look
+at most closely.
+
+The tests now assert that a rejection *is shown*, and the wording is pinned in
+exactly one place, `error-message.spec.ts`. Those are two different questions and
+only one of them is about the copy. The row above is a full-suite run against the
+current code.
+
+The reason this is written up rather than quietly corrected: a mutation table is
+only worth anything if the numbers in it were actually observed, and the failure
+mode I hit — running a mutation against one file and reporting it as though it were
+the suite — is the easy way to produce a table that looks rigorous and is not.
 
 ## Coverage inventory
 
