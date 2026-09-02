@@ -107,7 +107,7 @@ test.describe('Known accessibility gaps', () => {
     expect(announced, 'the error banner needs role="alert" or an aria-live region').toBe(true);
   });
 
-  test('every interactive control in the nav should be reachable by keyboard', async ({
+  test('every nav control should be reachable by keyboard', async ({
     loggedInPage,
     homePage,
   }) => {

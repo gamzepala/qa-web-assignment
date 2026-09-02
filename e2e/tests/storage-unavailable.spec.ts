@@ -63,16 +63,21 @@ test.describe('When localStorage is unavailable', () => {
     ).toBeGreaterThan(0);
   });
 
-  test('the user should be told that the sign-in could not be completed', async ({ loginPage }) => {
-    test.fail();
+  // Nested so the reporter line reads "... > Known defect > ...". The other two
+  // expected-failure groups say so in their describe too, and a reviewer skimming
+  // for the ✘ marks should not have to open a file to know they are deliberate.
+  test.describe('Known defect', () => {
+    test('the user should be told the sign-in could not be completed', async ({ loginPage }) => {
+      test.fail();
 
-    // The behaviour A-7 asks for, kept to one assertion on purpose. Whatever the
-    // fix turns out to be — surface a message, or fall back to an in-memory
-    // session — the user has to end up somewhere other than staring at a form
-    // that ignored them.
-    await loginPage.open();
-    await loginPage.login(standardUser.email, standardUser.password);
+      // The behaviour A-7 asks for, kept to one assertion on purpose. Whatever
+      // the fix turns out to be — surface a message, or fall back to an
+      // in-memory session — the user has to end up somewhere other than staring
+      // at a form that ignored them.
+      await loginPage.open();
+      await loginPage.login(standardUser.email, standardUser.password);
 
-    await expect(loginPage.form.error).toBeVisible();
+      await expect(loginPage.form.error).toBeVisible();
+    });
   });
 });

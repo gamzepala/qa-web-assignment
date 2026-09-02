@@ -8,6 +8,27 @@ with Playwright and TypeScript. The original brief is preserved in
 suite found seven real defects in the application, which are written up in
 [docs/FINDINGS.md](docs/FINDINGS.md).
 
+## If you only have ten minutes
+
+```bash
+npm ci && npx playwright install --with-deps chromium && npm run test:e2e
+```
+
+Then read four things, in this order. They are where the judgement is, and there
+is more written down here than anyone should have to read:
+
+1. **[FINDINGS.md](docs/FINDINGS.md), A-1 and A-7** — the two defects that took
+   actual digging. One is a stylesheet rule left behind by a rewrite; the other is
+   a sign-in that silently does nothing when the browser blocks storage.
+2. **[TEST-STRATEGY.md](docs/TEST-STRATEGY.md), "Out of scope, and why"** — what I
+   deliberately did not automate, with reasons. Performance and visual regression
+   are in there.
+3. **[TEST-STRATEGY.md](docs/TEST-STRATEGY.md), "Proving the tests can fail"** —
+   `npm run test:mutants` breaks the app four ways and checks the suite notices.
+   It also documents a mistake I made writing that section and had to correct.
+4. **[ADR-005](docs/adr/ADR-005-stub-third-party-requests.md)** — where blocking a
+   CDN made the suite break the app, and it nearly got filed as a bug in the app.
+
 ## Running it
 
 From a clean clone, with Node 20 or newer:
@@ -72,12 +93,14 @@ poking at a browser interactively.
 
 ### Two things that look wrong and are not
 
-**Six tests report as `✘` while the run still passes.** They are marked
-`test.fail()` — Playwright runs them, expects them to fail, and the summary still
-says everything passed. They are the real defects listed in
-[FINDINGS.md](docs/FINDINGS.md), asserting the behaviour the app *should* have. If
-someone fixes one, it flips to an unexpected pass and the build goes red, which is
-how you find out the bug is gone. A skipped test would just rot quietly.
+**Six tests report as `✘` while the run still passes.** Every one of them sits under
+a describe block saying so — `Known defects`, `Known accessibility gaps`,
+`Known defect` — so they are easy to pick out of the output. They are marked
+`test.fail()`: Playwright runs them, expects them to fail, and the summary still
+says everything passed. Each asserts the behaviour the app *should* have, and each
+is written up in [FINDINGS.md](docs/FINDINGS.md). If someone fixes one, it flips to
+an unexpected pass and the build goes red, which is how you find out the bug is
+gone. A skipped test would just rot quietly.
 
 **`npm run test:a11y` needs Chromium installed**, which the setup above covers.
 

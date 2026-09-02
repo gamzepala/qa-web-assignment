@@ -20,7 +20,7 @@ broken.
 ## A-1 · The content area is invisible after signing in
 
 **Severity: high** · `css/style.css:128` · covered by
-`e2e/tests/session.spec.ts` → *the content area should be visible once signed in*
+`e2e/tests/session.spec.ts` → *Known defects › the content area should be visible once signed in*
 
 Sign in and you get a navigation bar, a footer, and nothing at all between them.
 The three paragraphs of content render into the DOM and are then hidden by CSS.
@@ -52,7 +52,7 @@ a good sign this is what was intended.
 ## A-2 · The Sign Out item in the user menu can never be clicked
 
 **Severity: medium** · `css/style.css:161` · covered by
-`e2e/tests/session.spec.ts` → *the Sign Out item in the user menu should be usable*
+`e2e/tests/session.spec.ts` → *Known defects › the Sign Out item in the user menu should be usable*
 
 Clicking the user icon is supposed to open a small dropdown with Sign Out in it.
 The element does appear in the DOM when you click, but it is invisible and
@@ -119,8 +119,8 @@ demanding a fix.
 ## A-4 · The Logout button fails the AA contrast minimum
 
 **Severity: low** · `css/style.css:170` · covered by
-`e2e/tests/a11y/login.a11y.spec.ts` → *the Logout button should meet the contrast
-minimum*
+`e2e/tests/a11y/login.a11y.spec.ts` → *Known accessibility gaps › the Logout button should meet
+the contrast minimum*
 
 White text on `#d9534f` measures **3.96:1**. WCAG AA asks for 4.5:1 at this size
 (15.2px, normal weight). It is the only automated accessibility violation anywhere
@@ -135,8 +135,8 @@ start out the shade it already turns into.
 ## A-5 · The failure message is never announced to a screen reader
 
 **Severity: medium** · `src/App.vue:41` · covered by
-`e2e/tests/a11y/login.a11y.spec.ts` → *the failure message should be announced to
-a screen reader*
+`e2e/tests/a11y/login.a11y.spec.ts` → *Known accessibility gaps › the failure message should be
+announced to a screen reader*
 
 Get your password wrong and a message appears. If you cannot see the screen,
 nothing happens at all: you press the button and the page sits there in silence,
@@ -163,8 +163,8 @@ matched by a styling class, because there is nothing better available.
 ## A-6 · The signed-in page is a keyboard dead end
 
 **Severity: medium** · `src/App.vue:4-33` · covered by
-`e2e/tests/a11y/login.a11y.spec.ts` → *every interactive control in the nav should
-be reachable by keyboard*
+`e2e/tests/a11y/login.a11y.spec.ts` → *Known accessibility gaps › every nav control should be
+reachable by keyboard*
 
 Tab through the page after signing in and you reach exactly one thing: the Logout
 button. Home, Products, Contact and the user menu are all plain `<div>`s with click
