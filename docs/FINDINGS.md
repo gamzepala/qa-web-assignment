@@ -4,7 +4,7 @@ Defects found while building the login test suite. Each one is covered by a test
 so none of them can quietly come back, and none of them can quietly stay fixed
 without somebody noticing either.
 
-Six are in the application. Three more are repository and tooling issues that
+Seven are in the application. Three more are repository and tooling issues that
 would have bitten whoever cloned this next; those are at the end.
 
 A note on how the application defects are tested. Rather than assert the broken
@@ -20,7 +20,7 @@ broken.
 ## A-1 · The content area is invisible after signing in
 
 **Severity: high** · `css/style.css:128` · covered by
-`e2e/tests/session.spec.ts` → *the content area should be visible once signed in*
+`e2e/tests/session.spec.ts` → *Known defects › the content area should be visible once signed in*
 
 Sign in and you get a navigation bar, a footer, and nothing at all between them.
 The three paragraphs of content render into the DOM and are then hidden by CSS.
@@ -52,7 +52,7 @@ a good sign this is what was intended.
 ## A-2 · The Sign Out item in the user menu can never be clicked
 
 **Severity: medium** · `css/style.css:161` · covered by
-`e2e/tests/session.spec.ts` → *the Sign Out item in the user menu should be usable*
+`e2e/tests/session.spec.ts` → *Known defects › the Sign Out item in the user menu should be usable*
 
 Clicking the user icon is supposed to open a small dropdown with Sign Out in it.
 The element does appear in the DOM when you click, but it is invisible and
@@ -119,8 +119,8 @@ demanding a fix.
 ## A-4 · The Logout button fails the AA contrast minimum
 
 **Severity: low** · `css/style.css:170` · covered by
-`e2e/tests/a11y/login.a11y.spec.ts` → *the Logout button should meet the contrast
-minimum*
+`e2e/tests/a11y/login.a11y.spec.ts` → *Known accessibility gaps › the Logout button should meet
+the contrast minimum*
 
 White text on `#d9534f` measures **3.96:1**. WCAG AA asks for 4.5:1 at this size
 (15.2px, normal weight). It is the only automated accessibility violation anywhere
@@ -135,8 +135,8 @@ start out the shade it already turns into.
 ## A-5 · The failure message is never announced to a screen reader
 
 **Severity: medium** · `src/App.vue:41` · covered by
-`e2e/tests/a11y/login.a11y.spec.ts` → *the failure message should be announced to
-a screen reader*
+`e2e/tests/a11y/login.a11y.spec.ts` → *Known accessibility gaps › the failure message should be
+announced to a screen reader*
 
 Get your password wrong and a message appears. If you cannot see the screen,
 nothing happens at all: you press the button and the page sits there in silence,
@@ -163,8 +163,8 @@ matched by a styling class, because there is nothing better available.
 ## A-6 · The signed-in page is a keyboard dead end
 
 **Severity: medium** · `src/App.vue:4-33` · covered by
-`e2e/tests/a11y/login.a11y.spec.ts` → *every interactive control in the nav should
-be reachable by keyboard*
+`e2e/tests/a11y/login.a11y.spec.ts` → *Known accessibility gaps › every nav control should be
+reachable by keyboard*
 
 Tab through the page after signing in and you reach exactly one thing: the Logout
 button. Home, Products, Contact and the user menu are all plain `<div>`s with click
@@ -186,6 +186,50 @@ role for assistive technology, at the cost of a `background: none; border: none`
 in the CSS. The nav items are decorative today — they do not navigate anywhere —
 so they can stay as they are until they do something, at which point they should
 be links.
+
+---
+
+## A-7 · Signing in fails silently when storage is blocked
+
+**Severity: medium** · `src/App.vue:117-127` and `:139-141` · covered by
+`e2e/tests/storage-unavailable.spec.ts`
+
+Enter correct credentials in a browser where `localStorage` throws, press LOGIN,
+and **nothing happens**. No error, no navigation, the form still filled in exactly
+as it was. Press it again and nothing happens again. The only trace is an uncaught
+exception in the console, which the person trying to sign in is not looking at.
+
+`logIn()` calls `setItem` and `checkLogged()` calls `getItem`, neither of them
+guarded:
+
+```js
+localStorage.setItem('logged', user.email);   // throws, and the handler stops here
+```
+
+`localStorage` is genuinely allowed to throw, and not only in strange
+configurations. Site data blocked for the origin is a checkbox in Firefox's
+settings. Enterprise policies disable storage per-origin routinely. A full quota
+throws `QuotaExceededError`. Safari's Lockdown Mode and various privacy extensions
+do the same thing. This is not an edge case invented to have something to test —
+it is the ordinary failure mode of the single API the whole session model rests on.
+
+The severity is medium rather than high only because the app has nothing behind
+the login. The *shape* of the bug — a primary action that fails without telling
+anyone — is the kind that generates support tickets no one can reproduce, because
+the person reporting it cannot say anything more useful than "the button doesn't
+work".
+
+**Suggested fix:** wrap both calls. If storage is unavailable, either tell the user
+plainly ("your browser is blocking site data, which this site needs to keep you
+signed in") or fall back to an in-memory session for the tab. Either is fine; what
+is not fine is a button that does nothing.
+
+Worth noting how this was found, because it is the answer to a fair question about
+this suite. The app makes no requests of its own, so the usual technique of
+intercepting a call and forcing it to fail has nothing to attach to. But "no
+network" is not the same as "no dependencies" — this app leans entirely on one
+browser API that is documented as fallible. Fault-injecting *that* is the same
+technique pointed at the dependency the app actually has.
 
 ---
 

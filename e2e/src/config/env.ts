@@ -18,20 +18,21 @@ dotenv.config({ quiet: true });
  */
 const DEFAULT_BASE_URL = 'http://127.0.0.1:4173';
 
-function required(name: string, value: string | undefined, fallback: string): string {
-  const resolved = value?.trim() || fallback;
-  if (!resolved) {
-    throw new Error(
-      `Missing configuration "${name}". Set it as an environment variable, ` +
-        `or copy .env.example and fill it in.`,
-    );
-  }
-  return resolved;
-}
+const baseUrl = process.env.BASE_URL?.trim() || DEFAULT_BASE_URL;
 
 export const config = {
-  /** Where the app under test is served. Overridable so the suite can point at a deployed build. */
-  baseUrl: required('BASE_URL', process.env.BASE_URL, DEFAULT_BASE_URL),
+  /**
+   * Where the app under test is served. Set BASE_URL to point the suite at a
+   * deployed build instead; when you do, Playwright skips starting its own server
+   * rather than building locally and then testing something else entirely.
+   */
+  baseUrl,
+
+  /**
+   * Whether the suite is responsible for serving the app. False as soon as
+   * BASE_URL names somewhere other than the local preview - see playwright.config.
+   */
+  servesAppItself: baseUrl === DEFAULT_BASE_URL,
 
   isCI: !!process.env.CI,
 } as const;

@@ -51,18 +51,17 @@ export class HomePage {
     await this.signOutMenuItem.click();
   }
 
-  async openUserMenu(): Promise<void> {
-    await this.userMenuToggle.click();
-  }
-
+  /**
+   * Only what the specs actually assert on. There were four more locators exposed
+   * here and none of them had a caller - a page object growing accessors "in case
+   * someone needs them" is how it quietly becomes an API nobody maintains.
+   * TypeScript's noUnusedLocals does not catch unused public members, so these
+   * have to be found by grepping for callers rather than by the compiler.
+   */
   get nav() {
     return {
       root: this.navigation,
       content: this.content,
-      logoutButton: this.logoutButton,
-      userMenuToggle: this.userMenuToggle,
-      signOut: this.signOutMenuItem,
-      items: this.navigation.locator('.menu > div'),
     };
   }
 }

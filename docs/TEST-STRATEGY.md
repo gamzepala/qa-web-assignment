@@ -83,19 +83,51 @@ account genuinely is user zero.
 
 ### Proving the tests can fail
 
-A test that cannot fail is worse than no test, so I broke the app three ways and
-checked what happened.
+A test that cannot fail is worse than no test, because it costs the same to run and
+buys nothing. So the suite is checked against a broken application — not once, by
+hand, but by a command anyone can run:
+
+```bash
+npm run test:mutants
+```
+
+It breaks `src/App.vue` four ways in turn, runs the whole Chromium suite against
+each, restores the file, and fails if any mutant survives. The table below is its
+output, not a transcription of it:
 
 | Mutation | Expected | Actual |
 |---|---|---|
-| Removed the credential check entirely | The rejection suite fails | 19 of 21 failed; the 2 survivors correctly do not assert rejection |
-| Logout hides the view but keeps the session | The logout tests fail | Exactly 2 failed, both logout tests |
-| Sign everyone in as the first user | The identity assertions fail | Exactly 2 failed, the two other accounts |
-| Reworded the error message | The exact-copy test fails | 1 failed; the four behavioural tests correctly still passed |
+| Skip the credential check entirely — anyone gets in | the rejection suite fails | 25 failed |
+| Logout hides the view but keeps the stored session | the logout tests fail | 3 failed |
+| Sign everyone in as the first user, whoever they are | the identity assertions fail | 2 failed |
+| Reword the rejection message | only the test pinning the wording fails | 1 failed |
 
-The last row is the useful one. Only the test that pins the wording broke, and the
-tests about *when* the message appears and clears did not — which is what you want,
-because those are different behaviours and should not be coupled to the copy.
+It runs nightly in CI as **Verify the tests can fail**. A mutant that survives means
+an assertion has been weakened somewhere, and the build goes red for it — which is
+the part a hand-run table cannot do.
+
+The last row is the one worth explaining, because the first time I ran it by hand
+the result was misleading and I wrote the wrong conclusion from it. That episode is
+most of why the script exists.
+
+I originally ran that mutation against `error-message.spec.ts` alone, saw one
+failure out of five, and wrote that behavioural tests were properly decoupled from
+the copy. They were not. The exact sentence was asserted with `toHaveText` in three
+files, and because two of those sites sit inside `for` loops it expanded to roughly
+sixteen tests. A one-word copy change would have turned three files red — the
+opposite of what I had claimed, in the section I had just told the reader to look
+at most closely.
+
+The tests now assert that a rejection *is shown*, and the wording is pinned in
+exactly one place, `error-message.spec.ts`. Those are two different questions and
+only one of them is about the copy. The row above is a full-suite run against the
+current code.
+
+The reason this is written up rather than quietly corrected: a mutation table is
+only worth anything if the numbers in it were actually observed, and the failure
+mode I hit — running a mutation against one file and reporting it as though it were
+the suite — is the easy way to produce a table that looks rigorous and is not. A
+table that regenerates itself cannot drift like that.
 
 ## Coverage inventory
 
@@ -173,6 +205,8 @@ is left blank, because a blank is indistinguishable from an oversight.
 | Console free of errors during critical flows | Covered |
 | Loading and empty states | Not applicable — nothing loads asynchronously |
 | Server error states via route interception | Not applicable — no requests to intercept |
+| Browser storage unavailable (blocked, private mode, quota full) | Covered — found A-7 |
+| Page still renders when storage throws on mount | Covered |
 | Visual regression | Out of scope — see below |
 | Performance budget | Out of scope — see below |
 
@@ -182,10 +216,18 @@ This is the section I would read first if I were reviewing someone else's
 submission, so here it is with reasons rather than a list.
 
 **Route interception for error, empty and loading states.** Normally the
-highest-value technique available, and here there is nothing to intercept. The app
-makes no requests of its own. The only network traffic is a font and an icon kit,
+highest-value technique available, and here there is no request to intercept. The
+app makes none of its own; the only network traffic is a font and an icon kit,
 both of which the suite already stubs. Simulating a failing API against an app with
 no API would be theatre.
+
+What is *not* out of scope is the technique behind it. "No network" is not the same
+as "no dependencies", and this app leans its entire session model on one browser
+API that is documented as fallible. Fault-injecting `localStorage` instead of a
+network call is the same idea aimed at the dependency that actually exists, and it
+found A-7: with storage blocked, correct credentials produce no error, no
+navigation and no feedback of any kind. That is covered in
+`e2e/tests/storage-unavailable.spec.ts`.
 
 **Browser back and forward behaviour.** The app has no routing — signing in and out
 does not change the URL or push a history entry, so there is nothing meaningful to

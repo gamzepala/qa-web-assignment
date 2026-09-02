@@ -45,16 +45,34 @@ test.describe('Automated scan', () => {
     loggedInPage,
     homePage,
   }) => {
-    // The Logout button's contrast is the only thing wrong here, and it is
-    // tracked as its own expected-failure test below. Filtering it out rather
-    // than skipping the whole page means a brand new violation still fails,
-    // which is the part that matters day to day.
-    const KNOWN_ISSUES = ['color-contrast'];
+    // The Logout button's contrast is the only thing wrong here, and it has its
+    // own expected-failure test below.
+    //
+    // The exclusion is by rule *and element*, not by rule alone. Excusing
+    // color-contrast page-wide would swallow a brand new contrast failure
+    // somewhere else on the same page, which is exactly the regression this test
+    // exists to catch - a baseline that quietly widens is worse than no baseline.
+    // Matched on the element's markup rather than axe's target selector. axe
+    // reports whatever is shortest and unique - here just "button" - which would
+    // stop matching the moment a second button appeared on the page, silently
+    // widening the exclusion at exactly the wrong moment.
+    const KNOWN_ISSUES = [{ rule: 'color-contrast', element: 'btn-logout' }];
 
     await homePage.expectLoaded();
 
     const { violations } = await scan(loggedInPage);
-    const unexpected = violations.filter((v) => !KNOWN_ISSUES.includes(v.id));
+
+    const unexpected = violations
+      .map((violation) => ({
+        ...violation,
+        nodes: violation.nodes.filter(
+          (node) =>
+            !KNOWN_ISSUES.some(
+              (known) => known.rule === violation.id && node.html.includes(known.element),
+            ),
+        ),
+      }))
+      .filter((violation) => violation.nodes.length > 0);
 
     expect(
       unexpected.length,
@@ -107,7 +125,7 @@ test.describe('Known accessibility gaps', () => {
     expect(announced, 'the error banner needs role="alert" or an aria-live region').toBe(true);
   });
 
-  test('every interactive control in the nav should be reachable by keyboard', async ({
+  test('every nav control should be reachable by keyboard', async ({
     loggedInPage,
     homePage,
   }) => {

@@ -1,5 +1,5 @@
 import { expect, test } from '../src/fixtures/fixtures';
-import { INVALID_LOGIN_MESSAGE, invalidCredentials, standardUser } from '../src/testdata/users';
+import { invalidCredentials, standardUser } from '../src/testdata/users';
 import { readSession } from '../src/utils/session';
 
 /**
@@ -11,6 +11,12 @@ import { readSession } from '../src/utils/session';
  * because nothing is true yet on a blank page. Establishing the error state
  * first means the absence check is made against a page that has actually
  * settled.
+ *
+ * These assert that an error is *shown*, not what it says. The wording is pinned
+ * in exactly one place, error-message.spec.ts, because these tests are about who
+ * gets turned away rather than about the copy - and if every rejection test
+ * asserted the exact sentence, changing a word would turn three files red and
+ * tell you nothing you did not already know.
  */
 test.describe('Rejecting invalid credentials', () => {
   for (const [name, credentials] of Object.entries(invalidCredentials)) {
@@ -18,7 +24,7 @@ test.describe('Rejecting invalid credentials', () => {
       await loginPage.open();
       await loginPage.login(credentials.email, credentials.password);
 
-      await expect(loginPage.form.error).toHaveText(INVALID_LOGIN_MESSAGE);
+      await expect(loginPage.form.error).toBeVisible();
       await expect(loginPage.form.submit).toBeVisible();
 
       await expect
@@ -52,33 +58,39 @@ test.describe('Rejecting invalid credentials', () => {
     loginPage,
   }) => {
     // Account enumeration. The moment the copy splits into "no such user" and
-    // "wrong password", anyone can work out which email addresses are
-    // registered by reading the error. Both paths must stay indistinguishable.
-    // Each attempt starts from a fresh load. Reusing the page would mean the
-    // second read could catch the first attempt's banner before typing had
-    // cleared it, and the test would pass for the wrong reason.
+    // "wrong password", anyone can work out which addresses are registered by
+    // reading the error. Both paths have to stay indistinguishable.
+    //
+    // The two messages are compared to each other rather than to the known
+    // wording, because that is what the property actually is. If someone changed
+    // both messages to something else entirely, enumeration is still prevented
+    // and this test should still pass - it is error-message.spec.ts's job to
+    // notice the wording changed.
+    //
+    // Each attempt starts from a fresh load. Reusing the page would let the
+    // second read catch the first attempt's banner before typing had cleared it.
     await loginPage.open();
     await loginPage.login(standardUser.email, 'wrong-password');
     await expect(loginPage.form.error).toBeVisible();
-    const wrongPasswordMessage = await loginPage.form.error.textContent();
+    const wrongPasswordMessage = ((await loginPage.form.error.textContent()) ?? '').trim();
+
+    // Guards the comparison below. Two empty strings match each other happily,
+    // so without this the test would pass against a form that says nothing at all.
+    expect(wrongPasswordMessage, 'a rejected sign-in has to actually say something').not.toBe('');
 
     await loginPage.open();
     await loginPage.login('nobody@nowhere.test', standardUser.password);
-    await expect(loginPage.form.error).toBeVisible();
-    const unknownUserMessage = await loginPage.form.error.textContent();
 
-    expect(
-      unknownUserMessage,
+    await expect(
+      loginPage.form.error,
       'the two failure modes must not be distinguishable from the message',
-    ).toBe(wrongPasswordMessage);
+    ).toHaveText(wrongPasswordMessage);
   });
 
-  test('shows one error, not a growing stack, across repeated attempts', async ({
-    loginPage,
-  }) => {
-    // Submitting again after a failure is the most common thing a user does.
-    // Catches a regression where each attempt appends another banner, and
-    // doubles as a double-submit check.
+  test('keeps rejecting cleanly when the user tries again', async ({ loginPage }) => {
+    // Submitting again after a failure is the most common thing a person does
+    // next. Catches a state bug where the second attempt silently does nothing
+    // because the component thinks it has already handled this input.
     await loginPage.open();
 
     for (let attempt = 0; attempt < 3; attempt++) {
@@ -86,6 +98,9 @@ test.describe('Rejecting invalid credentials', () => {
       await expect(loginPage.form.error).toBeVisible();
     }
 
+    // One banner, not three stacked up. The component holds a single string
+    // behind a v-if so this is close to structural, but it is the assertion that
+    // would fail first if the error were ever moved into a list.
     await expect(loginPage.form.error).toHaveCount(1);
   });
 });
