@@ -92,13 +92,22 @@ export default defineConfig({
    * Tests run against the production build rather than the dev server. It is what
    * actually ships, and it avoids the dev server's HMR websocket showing up as
    * unexpected network noise in the console-error checks.
+   *
+   * Skipped entirely when BASE_URL points somewhere else. Without that check,
+   * setting BASE_URL to a deployed environment would still build and serve the app
+   * locally and then quietly test the remote one - config that claims a capability
+   * it does not have is worse than config that has none.
    */
-  webServer: {
-    command: 'npm run build && npm run preview',
-    url: config.baseUrl,
-    reuseExistingServer: !config.isCI,
-    timeout: 120_000,
-    stdout: 'ignore',
-    stderr: 'pipe',
-  },
+  webServer: config.servesAppItself
+    ? {
+        command: 'npm run build && npm run preview',
+        url: config.baseUrl,
+        reuseExistingServer: !config.isCI,
+        timeout: 120_000,
+        // Build output is kept: when the server fails to come up, the reason is
+        // almost always in there, and discarding it leaves only a port timeout.
+        stdout: 'pipe',
+        stderr: 'pipe',
+      }
+    : undefined,
 });

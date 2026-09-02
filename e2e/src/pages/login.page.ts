@@ -13,7 +13,6 @@ export class LoginPage {
   private readonly emailInput: Locator;
   private readonly passwordInput: Locator;
   private readonly submitButton: Locator;
-  private readonly heading: Locator;
 
   /**
    * The error banner is the one locator bound to a styling class. The app renders
@@ -28,7 +27,6 @@ export class LoginPage {
     this.emailInput = page.getByLabel('User');
     this.passwordInput = page.getByLabel('Password');
     this.submitButton = page.getByRole('button', { name: 'LOGIN' });
-    this.heading = page.getByRole('heading', { level: 1 });
     this.errorBanner = page.locator('.error-message');
   }
 
@@ -90,7 +88,6 @@ export class LoginPage {
       password: this.passwordInput,
       submit: this.submitButton,
       error: this.errorBanner,
-      heading: this.heading,
     };
   }
 }
