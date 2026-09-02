@@ -13,7 +13,8 @@
     "test:e2e:all-browsers": "playwright test --project=chromium --project=firefox --project=webkit",
     "test:a11y": "playwright test --project=a11y",
     "test:report": "playwright show-report",
-    "typecheck": "tsc --noEmit --project e2e/tsconfig.json"
+    "typecheck": "tsc --noEmit --project e2e/tsconfig.json",
+    "test:mutants": "node scripts/mutants.mjs"
   },
   "dependencies": {
     "vue": "^3.3.4"

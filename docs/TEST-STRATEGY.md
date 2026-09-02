@@ -83,18 +83,32 @@ account genuinely is user zero.
 
 ### Proving the tests can fail
 
-A test that cannot fail is worse than no test, so I broke the app four ways and
-checked what happened. Each row is the whole Chromium suite unless stated.
+A test that cannot fail is worse than no test, because it costs the same to run and
+buys nothing. So the suite is checked against a broken application — not once, by
+hand, but by a command anyone can run:
+
+```bash
+npm run test:mutants
+```
+
+It breaks `src/App.vue` four ways in turn, runs the whole Chromium suite against
+each, restores the file, and fails if any mutant survives. The table below is its
+output, not a transcription of it:
 
 | Mutation | Expected | Actual |
 |---|---|---|
-| Removed the credential check entirely | The rejection suite fails | 19 of 21 failed; the 2 survivors correctly do not assert rejection |
-| Logout hides the view but keeps the session | The logout tests fail | Exactly 2 failed, both logout tests |
-| Sign everyone in as the first user | The identity assertions fail | Exactly 2 failed, the two other accounts |
-| Reworded the error message | Only the test pinning the wording fails | 1 failed |
+| Skip the credential check entirely — anyone gets in | the rejection suite fails | 25 failed |
+| Logout hides the view but keeps the stored session | the logout tests fail | 3 failed |
+| Sign everyone in as the first user, whoever they are | the identity assertions fail | 2 failed |
+| Reword the rejection message | only the test pinning the wording fails | 1 failed |
 
-The last row is the one worth explaining, because the first time I ran it the
-result was misleading and I had written the wrong conclusion from it.
+It runs nightly in CI as **Verify the tests can fail**. A mutant that survives means
+an assertion has been weakened somewhere, and the build goes red for it — which is
+the part a hand-run table cannot do.
+
+The last row is the one worth explaining, because the first time I ran it by hand
+the result was misleading and I wrote the wrong conclusion from it. That episode is
+most of why the script exists.
 
 I originally ran that mutation against `error-message.spec.ts` alone, saw one
 failure out of five, and wrote that behavioural tests were properly decoupled from
@@ -112,7 +126,8 @@ current code.
 The reason this is written up rather than quietly corrected: a mutation table is
 only worth anything if the numbers in it were actually observed, and the failure
 mode I hit — running a mutation against one file and reporting it as though it were
-the suite — is the easy way to produce a table that looks rigorous and is not.
+the suite — is the easy way to produce a table that looks rigorous and is not. A
+table that regenerates itself cannot drift like that.
 
 ## Coverage inventory
 

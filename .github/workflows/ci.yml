@@ -193,6 +193,39 @@ jobs:
             test-results/
           retention-days: 14
 
+  # Breaks the app four ways and checks the suite notices. A mutant that survives
+  # means an assertion has been weakened somewhere and the tests have quietly
+  # stopped being able to fail - which nothing else in this pipeline would catch,
+  # because a suite that cannot fail is a suite that is always green.
+  #
+  # Nightly: four mutants each need a full suite run, so it costs a few minutes to
+  # detect something that only changes when someone edits an assertion.
+  verify-tests-can-fail:
+    name: Verify the tests can fail
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Cache browser binaries
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install chromium
+        run: npx playwright install --with-deps chromium
+
+      - run: npm run test:mutants
+
   # Runs the whole suite three times against unchanged code. Anything that comes
   # back with a different result is flaky by definition, and this is the only way
   # to find that out before it starts eroding trust in a red build.
