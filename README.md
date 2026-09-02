@@ -1,5 +1,7 @@
 # Login test automation
 
+[![CI](https://github.com/gamzepala/qa-web-assignment/actions/workflows/ci.yml/badge.svg)](https://github.com/gamzepala/qa-web-assignment/actions/workflows/ci.yml)
+
 Automated tests for the login functionality of this Vue 3 single-page app, built
 with Playwright and TypeScript. The original brief is preserved in
 [docs/ASSIGNMENT.md](docs/ASSIGNMENT.md).
