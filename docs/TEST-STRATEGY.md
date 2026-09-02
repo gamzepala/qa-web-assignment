@@ -190,6 +190,8 @@ is left blank, because a blank is indistinguishable from an oversight.
 | Console free of errors during critical flows | Covered |
 | Loading and empty states | Not applicable — nothing loads asynchronously |
 | Server error states via route interception | Not applicable — no requests to intercept |
+| Browser storage unavailable (blocked, private mode, quota full) | Covered — found A-7 |
+| Page still renders when storage throws on mount | Covered |
 | Visual regression | Out of scope — see below |
 | Performance budget | Out of scope — see below |
 
@@ -199,10 +201,18 @@ This is the section I would read first if I were reviewing someone else's
 submission, so here it is with reasons rather than a list.
 
 **Route interception for error, empty and loading states.** Normally the
-highest-value technique available, and here there is nothing to intercept. The app
-makes no requests of its own. The only network traffic is a font and an icon kit,
+highest-value technique available, and here there is no request to intercept. The
+app makes none of its own; the only network traffic is a font and an icon kit,
 both of which the suite already stubs. Simulating a failing API against an app with
 no API would be theatre.
+
+What is *not* out of scope is the technique behind it. "No network" is not the same
+as "no dependencies", and this app leans its entire session model on one browser
+API that is documented as fallible. Fault-injecting `localStorage` instead of a
+network call is the same idea aimed at the dependency that actually exists, and it
+found A-7: with storage blocked, correct credentials produce no error, no
+navigation and no feedback of any kind. That is covered in
+`e2e/tests/storage-unavailable.spec.ts`.
 
 **Browser back and forward behaviour.** The app has no routing — signing in and out
 does not change the URL or push a history entry, so there is nothing meaningful to

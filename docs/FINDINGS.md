@@ -4,7 +4,7 @@ Defects found while building the login test suite. Each one is covered by a test
 so none of them can quietly come back, and none of them can quietly stay fixed
 without somebody noticing either.
 
-Six are in the application. Three more are repository and tooling issues that
+Seven are in the application. Three more are repository and tooling issues that
 would have bitten whoever cloned this next; those are at the end.
 
 A note on how the application defects are tested. Rather than assert the broken
@@ -186,6 +186,50 @@ role for assistive technology, at the cost of a `background: none; border: none`
 in the CSS. The nav items are decorative today — they do not navigate anywhere —
 so they can stay as they are until they do something, at which point they should
 be links.
+
+---
+
+## A-7 · Signing in fails silently when storage is blocked
+
+**Severity: medium** · `src/App.vue:117-127` and `:139-141` · covered by
+`e2e/tests/storage-unavailable.spec.ts`
+
+Enter correct credentials in a browser where `localStorage` throws, press LOGIN,
+and **nothing happens**. No error, no navigation, the form still filled in exactly
+as it was. Press it again and nothing happens again. The only trace is an uncaught
+exception in the console, which the person trying to sign in is not looking at.
+
+`logIn()` calls `setItem` and `checkLogged()` calls `getItem`, neither of them
+guarded:
+
+```js
+localStorage.setItem('logged', user.email);   // throws, and the handler stops here
+```
+
+`localStorage` is genuinely allowed to throw, and not only in strange
+configurations. Site data blocked for the origin is a checkbox in Firefox's
+settings. Enterprise policies disable storage per-origin routinely. A full quota
+throws `QuotaExceededError`. Safari's Lockdown Mode and various privacy extensions
+do the same thing. This is not an edge case invented to have something to test —
+it is the ordinary failure mode of the single API the whole session model rests on.
+
+The severity is medium rather than high only because the app has nothing behind
+the login. The *shape* of the bug — a primary action that fails without telling
+anyone — is the kind that generates support tickets no one can reproduce, because
+the person reporting it cannot say anything more useful than "the button doesn't
+work".
+
+**Suggested fix:** wrap both calls. If storage is unavailable, either tell the user
+plainly ("your browser is blocking site data, which this site needs to keep you
+signed in") or fall back to an in-memory session for the tab. Either is fine; what
+is not fine is a button that does nothing.
+
+Worth noting how this was found, because it is the answer to a fair question about
+this suite. The app makes no requests of its own, so the usual technique of
+intercepting a call and forcing it to fail has nothing to attach to. But "no
+network" is not the same as "no dependencies" — this app leans entirely on one
+browser API that is documented as fallible. Fault-injecting *that* is the same
+technique pointed at the dependency the app actually has.
 
 ---
 

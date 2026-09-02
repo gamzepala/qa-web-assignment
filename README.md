@@ -4,8 +4,8 @@ Automated tests for the login functionality of this Vue 3 single-page app, built
 with Playwright and TypeScript. The original brief is preserved in
 [docs/ASSIGNMENT.md](docs/ASSIGNMENT.md).
 
-**57 tests across three layers**, plus a GitHub Actions pipeline. Along the way the
-suite found six real defects in the application, which are written up in
+**60 tests across three layers**, plus a GitHub Actions pipeline. Along the way the
+suite found seven real defects in the application, which are written up in
 [docs/FINDINGS.md](docs/FINDINGS.md).
 
 ## Running it
@@ -72,7 +72,7 @@ poking at a browser interactively.
 
 ### Two things that look wrong and are not
 
-**Five tests report as `✘` while the run still passes.** They are marked
+**Six tests report as `✘` while the run still passes.** They are marked
 `test.fail()` — Playwright runs them, expects them to fail, and the summary still
 says everything passed. They are the real defects listed in
 [FINDINGS.md](docs/FINDINGS.md), asserting the behaviour the app *should* have. If
@@ -86,14 +86,15 @@ how you find out the bug is gone. A skipped test would just rot quietly.
 | Layer | Tests | What it proves |
 |---|---|---|
 | Component ([`src/App.spec.js`](src/App.spec.js)) | 11 | The branches inside `logIn`, `logOut` and `clearError`, in milliseconds, with no browser |
-| End-to-end ([`e2e/tests/`](e2e/tests)) | 40 | A real person signing in, being turned away, and signing out, in a real browser |
+| End-to-end ([`e2e/tests/`](e2e/tests)) | 43 | A real person signing in, being turned away, and signing out, in a real browser |
 | Accessibility ([`e2e/tests/a11y/`](e2e/tests/a11y)) | 6 | WCAG 2.0 and 2.1 A/AA, plus the keyboard and screen-reader checks a scanner cannot make |
 
-That is 57 written for this assignment. `npm test` reports 12 rather than 11,
+That is 60 written for this assignment. `npm test` reports 12 rather than 11,
 because it also runs the single pre-existing test in `js/users.test.js`.
 
 The end-to-end tests break down as sign-in (7), rejected credentials (11), edge
-cases and hostile input (10), error message behaviour (5), and session lifetime (7).
+cases and hostile input (10), error message behaviour (5), session lifetime (7),
+and behaviour when browser storage is unavailable (3).
 
 Why the coverage is shaped this way, what was left out and why, and the risk
 ranking behind it are all in [docs/TEST-STRATEGY.md](docs/TEST-STRATEGY.md).
@@ -142,10 +143,11 @@ so a CI failure can be diagnosed without reproducing it locally.
 
 ## What it found
 
-Six defects, in short:
+Seven defects, in short:
 
 - After signing in, the entire content area is invisible.
 - The Sign Out item in the user menu can never be clicked.
+- With site data blocked, a correct sign-in silently does nothing at all.
 - Any value in `localStorage` is accepted as a valid session.
 - The Logout button fails the AA contrast minimum.
 - The failure message is never announced to a screen reader.
